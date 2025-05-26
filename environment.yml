@@ -1,0 +1,14 @@
+name: partition_graph
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - numpy
+  - networkx
+  - pip
+  - pip:
+    - torch           # PyTorch
+    - torch-geometric # PyTorch Geometric
+    - matplotlib
+    - tqdm
