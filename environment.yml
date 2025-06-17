@@ -4,11 +4,13 @@ channels:
   - defaults
 dependencies:
   - python=3.9
-  - numpy
-  - networkx
+  - numpy=1.21
+  - networkx=2.6
   - pip
   - pip:
-    - torch           # PyTorch
-    - torch-geometric # PyTorch Geometric
-    - matplotlib
-    - tqdm
+      - torch==1.10.0
+      - torch-geometric==2.1.0
+      - matplotlib
+      - tqdm
+      - torch-scatter==2.0.8  # Required by torch-geometric
+      - torch-sparse==0.6.11  # Required by torch-geometric
