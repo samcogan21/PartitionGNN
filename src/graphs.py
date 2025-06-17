@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 
 
@@ -43,7 +44,7 @@ def attach_couplings(G, coupling_range=(0, 2)):
     return G
 
 
-def save_graphs_to_gpickle(graph_list, output_dir="data/raw"):
+def save_graphs_to_gpickle(graph_list, output_dir=r"C:\Users\omerk\OneDrive - Technion\מסמכים\תואר שני\Courses\Statistical Thermodynamics\Final Project\PartitionGNN\data\raw"):
     """
     Save generated graphs as .gpickle files in the specified directory.
 
@@ -88,6 +89,16 @@ def create_graphs(num_graphs=500, n=16, p=0.3):
 
 # Example usage: Create 500 graphs and save them as gpickle files
 graphs = create_graphs(num_graphs=500)
+
+
+# Visualize the second graph (graphs[1]) using matplotlib, for checking only
+nx.draw(graphs[1], with_labels=True)
+plt.show()
+
+G = nx.read_gpickle("data/raw/graph_001.gpickle")
+for u, v, data in G.edges(data=True):
+    print(f"Edge ({u}, {v}) has coupling J = {data['J']}")
+
 
 # Save the generated graphs to the raw data folder
 save_graphs_to_gpickle(graphs)
