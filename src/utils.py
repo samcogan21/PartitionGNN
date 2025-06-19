@@ -1,6 +1,8 @@
 import numpy as np
 from src.enumerate import compute_energies
 import networkx as nx
+import matplotlib.pyplot as plt
+import pickle
 
 
 def lnZ(energies: np.ndarray, T: float) -> float:
@@ -11,12 +13,21 @@ def lnZ(energies: np.ndarray, T: float) -> float:
     E_min = energies.min()
     return -E_min/T + np.log(np.sum(np.exp(-(energies - E_min)/T)))
 
-# ---- Test on a toy graph ----
+def visualize_graph(G: nx.Graph) -> None:
+    """
+    Visualizes the given graph with node labels and edge couplings.
+    """
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray')
+    edge_labels = {(u, v): f"{G[u][v].get('J', 0):.2f}" for u, v in G.edges()}
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    plt.show()
 
-G = nx.erdos_renyi_graph(16, 0.2)
-for u, v in G.edges():
-    G[u][v]['J'] = np.random.uniform(0, 2)
+# ---- Test on a raw graph ----
+with open("../db/raw/graph_000.gpickle", "rb") as f:
+    G_loaded = pickle.load(f)
 
-energies = compute_energies(G)
+energies = compute_energies(G_loaded)
 for T in [0.5, 1.0, 2.0]:
     print(f"lnZ(G, T={T}) = {lnZ(energies, T):.4f}")
+visualize_graph(G_loaded)
