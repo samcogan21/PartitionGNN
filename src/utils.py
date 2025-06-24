@@ -3,6 +3,8 @@ from src.enumerate import compute_energies
 import networkx as nx
 import matplotlib.pyplot as plt
 import pickle
+import os
+import glob
 
 
 def lnZ(energies: np.ndarray, T: float) -> float:
@@ -23,11 +25,16 @@ def visualize_graph(G: nx.Graph) -> None:
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
     plt.show()
 
-# ---- Test on a raw graph ----
-with open("../db/raw/graph_000.gpickle", "rb") as f:
-    G_loaded = pickle.load(f)
+def load_graphs_from_raw(raw_folder: str = "../db/raw") -> list:
+    """
+    Loads all .gpickle files from the raw folder and returns a list of graphs.
+    Assumes graphs already have 'J' values.
+    """
+    graphs = []
+    files = glob.glob(os.path.join(raw_folder, "*.gpickle"))
+    for file in files:
+        with open(file, "rb") as f:
+            G = pickle.load(f)
+        graphs.append(G)
+    return graphs
 
-energies = compute_energies(G_loaded)
-for T in [0.5, 1.0, 2.0]:
-    print(f"lnZ(G, T={T}) = {lnZ(energies, T):.4f}")
-visualize_graph(G_loaded)
