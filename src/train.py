@@ -1,46 +1,72 @@
 import os
+import pickle
+import json
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 
-from enumerate import compute_energies
-from utils import lnZ, load_graphs_from_raw
+from preprocessing import run_preprocessing
 from dataset import PartitionDataset
 from gnn import PartitionGNN
 
+
 def main():
+    # Paths
+    raw_dir = "db/raw"
+    energy_cache = "cache/energies"
+    lnz_cache = "cache/lnz"
+    split_out = "cache/split.json"
 
-    #ToDo
-    # 1. Load graphs from raw files
-    graphs = []
-    # 2. Define temperatures
-    temps = temps = list(torch.linspace(0.5, 5.0, steps=10).tolist())
-    # 3. Compute energies and lnZ for each graph at each temperature
+    # 1-5. Preprocess: load graphs, cache energies, lnZ, and split indices
+    split = run_preprocessing(
+        raw_dir=raw_dir,
+        energy_cache=energy_cache,
+        lnz_cache=lnz_cache,
+        split_out=split_out,
+        temp_start=0.5,
+        temp_stop=5.0,
+        temp_count=10
+    )
+
+    # Load split indices
+    with open(split_out, 'r') as f:
+        split = json.load(f)
+
+    # Reconstruct lnZ_dict from cached files
     lnZ_dict = {}
+    for idx in range(len(split['train']) + len(split['val']) + len(split['test'])):
+        pkl_path = os.path.join(lnz_cache, f"lnz_{idx:03d}.pkl")
+        with open(pkl_path, 'rb') as f:
+            per_graph = pickle.load(f)
+        for T, val in per_graph.items():
+            lnZ_dict[(idx, float(T))] = val
 
-    dataset = PartitionDataset(graphs, temps, lnZ_dict)
-    total = len(dataset)
-    train_size = int(0.8 * total)
-    val_size = int(0.1 * total)
-    test_size = total - train_size - val_size
-    train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
+    # Temperature grid
+    from preprocessing import temps_grid
+    temps = temps_grid(start=0.5, stop=5.0, count=10)
+
+    # 6. Create datasets per split
+    # graphs loaded inside PartitionDataset via raw_dir
+    train_ds = PartitionDataset("db/raw", temps, lnZ_dict, split['train'])
+    val_ds = PartitionDataset("db/raw", temps, lnZ_dict, split['val'])
+    test_ds = PartitionDataset("db/raw", temps, lnZ_dict, split['test'])
 
     train_loader = DataLoader(train_ds, batch_size=16, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=16)
-    test_loader = DataLoader(test_ds, batch_size=16)
+    val_loader = DataLoader(val_ds, batch_size=16, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=16, shuffle=False)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # 7. Model, device, optimizer, loss
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = PartitionGNN(hidden_dim=64, num_layers=3).to(device)
     optimizer = Adam(model.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
 
-    # 6. Training loop
+    # 8. Training loop
     epochs = 50
     for epoch in range(1, epochs + 1):
         model.train()
-        total_loss = 0.0
+        running_loss = 0.0
         for batch in train_loader:
             batch = batch.to(device)
             optimizer.zero_grad()
@@ -48,34 +74,32 @@ def main():
             loss = criterion(out, batch.y.view(-1))
             loss.backward()
             optimizer.step()
-            total_loss += loss.item() * batch.num_graphs
-        avg_train = total_loss / len(train_loader.dataset)
+            running_loss += loss.item() * batch.num_graphs
+        avg_train = running_loss / len(train_loader.dataset)
 
         # Validation
         model.eval()
-        total_val = 0.0
+        val_loss = 0.0
         with torch.no_grad():
             for batch in val_loader:
                 batch = batch.to(device)
-                out = model(batch)
-                total_val += criterion(out, batch.y.view(-1)).item() * batch.num_graphs
-        avg_val = total_val / len(val_loader.dataset)
+                val_loss += criterion(model(batch), batch.y.view(-1)).item() * batch.num_graphs
+        avg_val = val_loss / len(val_loader.dataset)
 
-        print(f"Epoch {epoch:02d}: Train MSE={avg_train:.4f}, Val MSE={avg_val:.4f}")
+        print(f"Epoch {epoch:02d}  Train MSE={avg_train:.4f}  Val MSE={avg_val:.4f}")
 
-    # 7. Test set evaluation
+    # 9. Testing
     model.eval()
     preds, trues = [], []
     with torch.no_grad():
         for batch in test_loader:
             batch = batch.to(device)
-            out = model(batch)
-            preds.append(out.cpu())
+            preds.append(model(batch).cpu())
             trues.append(batch.y.view(-1).cpu())
     preds = torch.cat(preds)
     trues = torch.cat(trues)
 
-    rmse = torch.sqrt(torch.mean((preds - trues)**2))
+    rmse = torch.sqrt(torch.mean((preds - trues) ** 2))
     mae = torch.mean(torch.abs(preds - trues))
     print(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}")
 
