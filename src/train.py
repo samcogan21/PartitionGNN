@@ -12,13 +12,15 @@ from gnn import PartitionGNN
 
 def main():
 
-    #ToDo
     # 1. Load graphs from raw files
-    graphs = []
+    graphs = load_graphs_from_raw()
     # 2. Define temperatures
-    temps = temps = list(torch.linspace(0.5, 5.0, steps=10).tolist())
+    temps = list(torch.linspace(0.5, 5.0, steps=10).tolist())
     # 3. Compute energies and lnZ for each graph at each temperature
     lnZ_dict = {}
+    for i, G in enumerate(graphs):
+        energies = compute_energies(G)
+        lnZ_dict[i] = {T: lnZ(energies, T) for T in temps}
 
     dataset = PartitionDataset(graphs, temps, lnZ_dict)
     total = len(dataset)
@@ -78,7 +80,6 @@ def main():
     rmse = torch.sqrt(torch.mean((preds - trues)**2))
     mae = torch.mean(torch.abs(preds - trues))
     print(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}")
-
 
 if __name__ == '__main__':
     main()
