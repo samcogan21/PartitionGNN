@@ -1,5 +1,10 @@
 import numpy as np
 import networkx as nx
+import os
+import pickle
+from typing import List
+from utils import lnZ
+
 
 
 def compute_energies(G):
@@ -27,6 +32,41 @@ def compute_energies(G):
         energies[mask] = H
 
     return energies
+
+def compute_and_cache_energies(graphs: List[nx.Graph], cache_dir: str) -> None:
+    """
+    Save energies_i.npy for each graph i in graphs to cache_dir.
+    """
+    os.makedirs(cache_dir, exist_ok=True)
+    for idx, G in enumerate(graphs):
+        E = compute_energies(G)
+        np.save(os.path.join(cache_dir, f'energies_{idx:03d}.npy'), E)
+
+def lnZ(energies: np.ndarray, T: float) -> float:
+    """
+    Compute ln Z at temperature T from the energy array using
+    the log-sum-exp trick for stability.
+    """
+    E_min = energies.min()
+    return -E_min/T + np.log(np.sum(np.exp(-(energies - E_min)/T)))
+
+
+def compute_and_cache_lnZ(cache_dir: str,
+                           temps: List[float],
+                           lnz_cache_dir: str) -> None:
+    """
+    For each energies_i.npy, compute lnZ for every T in temps
+    and pickle a dict {T: lnZ} as lnz_i.pkl in lnz_cache_dir.
+    """
+    os.makedirs(lnz_cache_dir, exist_ok=True)
+    for fn in sorted(os.listdir(cache_dir)):
+        if not fn.startswith('energies_') or not fn.endswith('.npy'):
+            continue
+        idx = fn.split('_')[1].split('.')[0]
+        E = np.load(os.path.join(cache_dir, fn))
+        values = {T: lnZ(E, T) for T in temps}
+        with open(os.path.join(lnz_cache_dir, f'lnz_{idx:03d}.pkl'), 'wb') as f:
+            pickle.dump(values, f)
 
 
 # ---- Test on a toy graph ----
