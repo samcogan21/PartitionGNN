@@ -1,0 +1,10 @@
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/PartitionGNN.iml
+.idea/vcs.xml
+src/__pycache__/dataset.cpython-39.pyc
+src/__pycache__/gnn.cpython-39.pyc
+*.pyc
+*.pyc
+*.pyc
