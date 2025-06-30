@@ -7,7 +7,6 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
-import matplotlib.pyplot as plt
 
 from enumerate import compute_energies
 from utils import lnZ, load_graphs_from_raw
@@ -19,6 +18,7 @@ def main():
 
     # 1. Load graphs from raw files
     graphs = load_graphs_from_raw()
+    print("Unique graph sizes:", sorted({G.number_of_nodes() for G in graphs}))
     print(f"Loaded {len(graphs)} graphs.")
 
     # 2. Define temperatures
@@ -91,44 +91,10 @@ def main():
         avg_val = total_val / len(val_loader.dataset)
         print(f"Epoch {epoch}: Validation completed. Avg MSE: {avg_val:.4f}")
 
-    print("Training completed. Starting test evaluation...")
-
-    # 7. Test set evaluation
-    model.eval()
-    preds, trues = [], []
-    with torch.no_grad():
-        for batch in test_loader:
-            batch = batch.to(device)
-            out = model(batch)
-            preds.append(out.cpu())
-            trues.append(batch.y.view(-1).cpu())
-    preds = torch.cat(preds)
-    trues = torch.cat(trues)
-
-    rmse = torch.sqrt(torch.mean((preds - trues)**2))
-    mae = torch.mean(torch.abs(preds - trues))
-    print(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}")
-    print("Test evaluation completed.")
-
-    # Save the trained model checkpoint
+    print("Training completed. Model checkpoint saved as PartitionGNN_checkpoint.pth")
     torch.save(model.state_dict(), "PartitionGNN_checkpoint.pth")
-    print("Model checkpoint saved as PartitionGNN_checkpoint.pth")
 
-    # Predicted vs. True scatter plot
-    plt.figure()
-    plt.scatter(trues.numpy(), preds.numpy(), c='blue', alpha=0.6)
-    plt.xlabel("True lnZ")
-    plt.ylabel("Predicted lnZ")
-    plt.title("Predicted vs. True lnZ")
-    # plot a diagonal line
-    min_val = min(trues.min().item(), preds.min().item())
-    max_val = max(trues.max().item(), preds.max().item())
-    plt.plot([min_val, max_val], [min_val, max_val], 'k--')
-
-    # Save the scatter plot before showing
-    plt.savefig("pred_vs_true.png")
-    print("Scatter plot saved as pred_vs_true.png")
-    plt.show()
+    print("Training completed.")
 
 if __name__ == '__main__':
     main()

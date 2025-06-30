@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import pickle
 
 
 def sample_graph(n=16, p=0.3):
@@ -44,20 +45,28 @@ def attach_couplings(G, coupling_range=(0, 2)):
     return G
 
 
-def save_graphs_to_gpickle(graph_list, output_dir=r"C:\Users\omerk\OneDrive - Technion\מסמכים\תואר שני\Courses\Statistical Thermodynamics\Final Project\PartitionGNN\data\raw"):
+def save_graphs_to_gpickle(graph_list, output_dir=None):
     """
-    Save generated graphs as .gpickle files in the specified directory.
-
-    Args:
-    graph_list: List of NetworkX graphs to save.
-    output_dir: Directory to save the .gpickle files.
+    Save generated graphs as .gpickle files in the project's db/raw directory by default.
     """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)  # Create the directory if it doesn't exist
+    # Determine default output directory if not provided
+    if output_dir is None:
+        # Find project root relative to this script
+        this_dir = os.path.dirname(__file__)             # e.g. .../src
+        project_root = os.path.abspath(os.path.join(this_dir, os.pardir))
+        output_dir = os.path.join(project_root, "db", "raw")
 
+    # Create the directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save each graph
     for idx, G in enumerate(graph_list):
-        path = os.path.join(output_dir, f"graph_{idx:03d}.gpickle")
-        nx.write_gpickle(G, path)
+        filename = f"graph_{idx:03d}.gpickle"
+        path = os.path.join(output_dir, filename)
+        with open(path, "wb") as f:
+            pickle.dump(G, f)
+
+    print(f"Saved {len(graph_list)} graphs to {output_dir}")
 
 
 def create_graphs(num_graphs=500, n=16, p=0.3):
@@ -87,18 +96,39 @@ def create_graphs(num_graphs=500, n=16, p=0.3):
     return graphs
 
 
+def create_graphs_varying_size(num_graphs=500, n_range=(6, 20), p=0.3):
+    """
+    Creates a list of random graphs with variable node sizes randomly chosen from n_range.
+    Ensures no isolated nodes and attaches random couplings to edges.
+
+    Args:
+    num_graphs: The number of graphs to create.
+    n_range: Tuple (min, max) for the range of node numbers in each graph.
+    p: Probability of edge creation between nodes.
+
+    Returns:
+    graphs: A list of generated graphs with couplings attached.
+    """
+    graphs = []
+    for _ in range(num_graphs):
+        n = np.random.choice(np.arange(n_range[0], n_range[1]+1, 4))
+        G = sample_graph(n=n, p=p)
+        G = attach_couplings(G)
+        graphs.append(G)
+    return graphs
+
+
 # Example usage: Create 500 graphs and save them as gpickle files
-graphs = create_graphs(num_graphs=500)
+graphs = create_graphs_varying_size(num_graphs=500)
+
+# Sanity check: Print number of nodes in the first 20 graphs
+for i, G in enumerate(graphs[:20]):
+    print(f"Graph {i} has {G.number_of_nodes()} nodes")
 
 
 # Visualize the second graph (graphs[1]) using matplotlib, for checking only
 nx.draw(graphs[1], with_labels=True)
 plt.show()
-
-G = nx.read_gpickle("data/raw/graph_001.gpickle")
-for u, v, data in G.edges(data=True):
-    print(f"Edge ({u}, {v}) has coupling J = {data['J']}")
-
 
 # Save the generated graphs to the raw data folder
 save_graphs_to_gpickle(graphs)
