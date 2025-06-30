@@ -51,7 +51,8 @@ def main():
     train_size = int(0.8 * total)
     val_size = int(0.1 * total)
     test_size = total - train_size - val_size
-    train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
+    train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size],
+                                              generator=torch.Generator().manual_seed(42))
     print(f"Dataset split into {train_size} train, {val_size} val, and {test_size} test examples.")
 
     train_loader = DataLoader(train_ds, batch_size=16, shuffle=True)
@@ -65,6 +66,8 @@ def main():
 
     # 6. Training loop
     epochs = 50
+    best_val_loss = float('inf')
+    best_epoch = -1
     for epoch in range(1, epochs + 1):
         print(f"Starting epoch {epoch}...")
         model.train()
@@ -90,10 +93,12 @@ def main():
                 total_val += criterion(out, batch.y.view(-1)).item() * batch.num_graphs
         avg_val = total_val / len(val_loader.dataset)
         print(f"Epoch {epoch}: Validation completed. Avg MSE: {avg_val:.4f}")
-
+        if avg_val < best_val_loss:
+            best_val_loss = avg_val
+            best_epoch = epoch
+            torch.save(model.state_dict(), "PartitionGNN_checkpoint.pth")
+            print(f"Epoch {epoch}: New best validation loss found. Saving model checkpoint with MSE of {avg_val:.4f}.")
     print("Training completed. Model checkpoint saved as PartitionGNN_checkpoint.pth")
-    torch.save(model.state_dict(), "PartitionGNN_checkpoint.pth")
-
     print("Training completed.")
 
 if __name__ == '__main__':
