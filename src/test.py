@@ -67,22 +67,22 @@ def main():
         return
 
     model.eval()
-    preds_density, trues_density, Ns = [], [], []
+    preds_density, trues_density= [], []
     with torch.no_grad():
         for batch in test_loader:
             batch = batch.to(device)
             out = model(batch)
             preds_density.append(out.cpu())
             trues_density.append(batch.y.view(-1).cpu())
-            counts = torch.bincount(batch.batch)
-            Ns.extend(counts.tolist())
-        preds_density = torch.cat(preds_density)
-        trues_density = torch.cat(trues_density)
-        Ns = torch.tensor(Ns, dtype=torch.float)
+            #counts = torch.bincount(batch.batch)
+
+    preds = torch.cat(preds_density)
+    trues = torch.cat(trues_density)
+    #Ns = torch.tensor(Ns, dtype=torch.float)
 
     # Recover total lnZ values per graph
-    preds = preds_density * Ns
-    trues = trues_density * Ns
+    #preds = preds_density * Ns
+    #trues = trues_density * Ns
 
     # Compute overall metrics
     rmse = torch.sqrt(torch.mean((preds - trues)**2))

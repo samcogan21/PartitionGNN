@@ -35,7 +35,7 @@ class PartitionDataset(Dataset):
         T = self.temps[t_idx]
         lnZ = self.lnZ[(g_idx, T)]
         num_nodes = G.number_of_nodes()
-        y = lnZ/num_nodes  # per node free-energy
+        y = lnZ
 
         # 1) Build edge_index for an undirected graph (and its reverse)
         edges = list(G.edges())
