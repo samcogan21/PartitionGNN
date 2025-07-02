@@ -127,6 +127,10 @@ def main():
         density_list.append(density)
         nodes_list.append(n)
 
+    # Compute overall relative error percentage (average of individual relative errors)
+    overall_rel_error = sum(relative_error_list) / len(relative_error_list) if relative_error_list else 0
+    print(f"Overall Relative Error Percentage: {overall_rel_error:.2f}%")
+
     # Plot 1: Predicted vs. True lnZ
     plt.figure()
     plt.scatter(trues.numpy(), preds.numpy(), c='blue', alpha=0.6)
