@@ -22,7 +22,7 @@ def main():
     print(f"Loaded {len(graphs)} graphs.")
 
     # 2. Define temperatures
-    temps = list(torch.linspace(0.5, 5.0, steps=10).tolist())
+    temps = list(torch.linspace(0.5, 100, steps=10).tolist())
     print("Temperatures defined.")
 
     # 3. Load or compute lnZ dictionary and save it for future runs
@@ -107,7 +107,9 @@ def main():
 
     rmse = torch.sqrt(torch.mean((preds - trues)**2))
     mae = torch.mean(torch.abs(preds - trues))
-    print(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}")
+    # Compute relative MAE as the average of absolute relative errors
+    relative_mae = torch.mean(torch.abs((preds - trues) / trues)) * 100
+    print(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}, Relative MAE (%): {relative_mae:.2f}%")
     print("Test evaluation completed.")
 
     # Save the trained model checkpoint
@@ -128,6 +130,46 @@ def main():
     # Save the scatter plot before showing
     plt.savefig("pred_vs_true.png")
     print("Scatter plot saved as pred_vs_true.png")
+    plt.show()
+
+    # 8. Additional analysis: Absolute Error vs Temperature and Graph Density
+    temp_list, abs_error_list, density_list = [], [], []
+    for idx in test_ds.indices:
+        data = dataset[idx]
+        data = data.to(device)
+        data.batch = torch.zeros(data.x.shape[0], dtype=torch.long, device=device)
+        with torch.no_grad():
+            pred = model(data).item()
+        pred_value = pred
+        true_value = data.y.item()
+        error = abs(pred_value - true_value)
+        T = data.x[0].item()
+        n = data.x.shape[0]
+        unique_edges = data.edge_index.shape[1] // 2
+        max_edges = n * (n - 1) / 2
+        density = unique_edges / max_edges if max_edges > 0 else 0
+        temp_list.append(T)
+        abs_error_list.append(error)
+        density_list.append(density)
+
+    # Plot: Absolute Error vs Temperature
+    plt.figure()
+    plt.scatter(temp_list, abs_error_list, c='blue', alpha=0.6)
+    plt.xlabel("Temperature")
+    plt.ylabel("Absolute Error")
+    plt.title("Absolute Error vs Temperature")
+    plt.savefig("abs_error_vs_temp.png")
+    print("Plot saved as abs_error_vs_temp.png")
+    plt.show()
+
+    # Plot: Absolute Error vs Graph Density
+    plt.figure()
+    plt.scatter(density_list, abs_error_list, c='green', alpha=0.6)
+    plt.xlabel("Graph Density")
+    plt.ylabel("Absolute Error")
+    plt.title("Absolute Error vs Graph Density")
+    plt.savefig("abs_error_vs_graph_density.png")
+    print("Plot saved as abs_error_vs_graph_density.png")
     plt.show()
 
 if __name__ == '__main__':
